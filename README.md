@@ -1,3 +1,31 @@
+# Results:
+
+All parts were recorded consecutively with no edits and uploaded to YouTube.
+
+- [Part 1 Link](https://youtu.be/t9PMPT3f2zk)
+- [Part 2 Link](https://youtu.be/bjVaHv50xmI)
+- [Part 3 Link](https://youtu.be/uYUbJxIZOR0)
+- [Part 4 Link](https://youtu.be/8UTIvDSz71w)
+
+
+Additionally, I have physically recorded the entire process on an iPhone for backup. While this may be over the top, I was worried about potential data loss and wanted to make sure the whole process was seamlessly recorded somewhere.
+
+- [Entire Seamless Recording IPhone for Backup](https://youtu.be/Dkd1VAxA784)
+
+- [X] All data ported in timely fashion
+- [X] Minimal Working CRUD
+- [X] Fast Response times for all queries, including group by model for failure rate
+ 
+### Simple Test Results `test.sh`
+```
+-----------------------------------------------
+passed: 21   failed: 0
+RESULT: PASS
+```
+These are super basic tests for now.
+
+
+
 # Clayton's Initial Plan
 
 ## Notes:
@@ -45,20 +73,7 @@
 - We could have actual Golang tests for the API, not jsut a curl shell script.
 - We didnt really scrutinize the speed of the C,U,D queries, but we could have done that. These arent the big issues here as of now.
 
-# Challenge
-- [X] All data ported in timely fashion
-- [X] Minimal Working CRUD
-- [X] Fast Response times for all queries, including group by model for failure rate
- 
-### Simple Test Results `test.sh`
-```
------------------------------------------------
-passed: 21   failed: 0
-RESULT: PASS
-```
-These are super basic tests for now.
-
-
+# Original Challenge:
 
 ### Objectives
 
