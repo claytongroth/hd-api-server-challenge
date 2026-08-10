@@ -1,4 +1,63 @@
-# hd-api-server-challenge
+# Clayton's Initial Plan
+
+## Notes:
+- Each row is a drive-day (unique serial number and date)
+- Failure rate "annualized failure rates (AFR)" / 365
+
+- Look at the data, download
+- Scriptify (maybe later) process of download/port-to-db
+- Docker compose for postgres and Go API-server
+
+## DB setup
+- Made schema in 2_setupDB.sql
+- Made Indexes, logged, and analyze in 4_postPortDB.sql
+- Test our Materialized View in 5_benchmarkQueries.sql
+
+
+## API-server
+- CRUD
+  - C 
+  - R ("Get me limit rows where model = X and date = Y", "Get me the rollup")
+  - U 
+  - D 
+
+
+# Biggest Challenges:
+- Porting data in a timely fashion
+    - File by file (COPY FROM HEADERs, on the container already)
+    - Make a super-file of all the CSVs and do one copy
+
+- Making our Queries fast
+
+
+
+
+
+## TODOS/Problems with this Project as done in one shot:
+- Actually scriptify the port-to-db process and DB setup
+- Fix the date format issues in the API so that requests can be more friendly to make without errors.
+- Think about giving the columns IDs that are hashes of `serial_number + date` so things are overall cleaner on the backend?
+- Queries are all just raw SQL. This is bad for SQL injection, we should use some library for controlled queries.
+- We can `REFRESH MATERIALIZED VIEW CONCURRENTLY drive_rollup;` in the background with a go routine to keep the rollup up to date.
+    - A redesign here mioght conider a DB or extension that can do a *TIMED* `REFRESH MATERIALIZED VIEW CONCURRENTLY drive_rollup;`
+    - TimescaleDB is capable of this
+- We could have more/better endpoints to query the rollup. For example, for one model, or over a specific date range. We could have different rollups potentially as well.
+- We could have actual Golang tests for the API, not jsut a curl shell script.
+
+# Challenge
+- [ ] All data ported in timely fashion
+- [ ] Minimal Working CRUD
+- [ ] Fast Response times for all queries, including group by model for failure rate
+ 
+### Simple Test Results `test.sh`
+```
+-----------------------------------------------
+passed: 21   failed: 0
+RESULT: PASS
+```
+These are super basic tests for now.
+
+
 
 ### Objectives
 

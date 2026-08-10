@@ -1,0 +1,54 @@
+name: hd-api-server-challenge
+
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_PASSWORD: postgres
+      # locale=C: byte-order text compares. Meaningfully faster for the
+      # GROUP BY model / index-on-serial_number work this dataset needs.
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      # The point of this mount: CSVs are visible to the *server* process, so
+      # ingest can use server-side `COPY table FROM '/csv_data/2026-01-01.csv'`
+      # instead of streaming every row through a client connection.
+      - ./data/csv_data:/csv_data:ro
+    shm_size: 256mb
+    # Defaults everywhere except the four knobs whose defaults actually hurt
+    # a bulk-COPY-then-aggregate workload.
+    command:
+      - postgres
+      - -c
+      - shared_buffers=1GB            # default 128MB
+      - -c
+      - maintenance_work_mem=1GB      # index builds after the COPY
+      - -c
+      - max_wal_size=8GB              # far fewer checkpoints mid-load
+      - -c
+      - work_mem=64MB                 # the GROUP BY model aggregates
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+    restart: unless-stopped
+
+  api:
+    build:
+      context: ./hd-api-server
+    environment:
+      DATABASE_URL: postgres://postgres:postgres@db:5432/postgres?sslmode=disable
+      PORT: "8080"
+    ports:
+      - "8080:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  pgdata:
