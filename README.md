@@ -43,11 +43,12 @@
     - TimescaleDB is capable of this
 - We could have more/better endpoints to query the rollup. For example, for one model, or over a specific date range. We could have different rollups potentially as well.
 - We could have actual Golang tests for the API, not jsut a curl shell script.
+- We didnt really scrutinize the speed of the C,U,D queries, but we could have done that. These arent the big issues here as of now.
 
 # Challenge
-- [ ] All data ported in timely fashion
-- [ ] Minimal Working CRUD
-- [ ] Fast Response times for all queries, including group by model for failure rate
+- [X] All data ported in timely fashion
+- [X] Minimal Working CRUD
+- [X] Fast Response times for all queries, including group by model for failure rate
  
 ### Simple Test Results `test.sh`
 ```
