@@ -11,12 +11,6 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
-// paging bounds for the by-species read
-const (
-	defaultLimit = 100
-	maxLimit     = 1000
-)
-
 // small json response struct
 type jsonResponse struct {
 	Error   bool   `json:"error"`
@@ -27,6 +21,7 @@ type jsonResponse struct {
 func (app *Config) HelloWorldHandler(w http.ResponseWriter, r *http.Request) {
 	app.InfoLog.Println("Hit HelloWorld Handler")
 
+	// example JSON response
 	payload := jsonResponse{
 		Error:   false,
 		Message: "Hello World",
@@ -98,23 +93,23 @@ func (app *Config) ReadRollupStatsHandler(w http.ResponseWriter, r *http.Request
 	}
 }
 
-func (app *Config) ReadDriveStatsByModelAndDateHandler(w http.ResponseWriter, r *http.Request) {
+func (app *Config) ReadDriveStatsBySerialAndDateHandler(w http.ResponseWriter, r *http.Request) {
 	start := time.Now()
-	app.InfoLog.Println("Hit ReadDriveStatsByModelAndDateHandler Handler")
+	app.InfoLog.Println("Hit ReadDriveStatsBySerialAndDateHandler Handler")
 
-	// Read the url params into model and date
-	model := chi.URLParam(r, "model")
+	// Read the url params into serial_number and date
+	serialNumber := chi.URLParam(r, "serial_number")
 	date := chi.URLParam(r, "date")
 
-	app.InfoLog.Println("model:", model, "date:", date)
+	app.InfoLog.Println("serial_number:", serialNumber, "date:", date)
 
 	// Handle if params are not there.
-	if model == "" || date == "" {
-		http.Error(w, "invalid model or date", http.StatusBadRequest)
+	if serialNumber == "" || date == "" {
+		http.Error(w, "invalid serial_number or date", http.StatusBadRequest)
 		return
 	}
 
-	rollUp, err := app.Models.DriveStats.GetByModelAndDate(r.Context(), model, date)
+	rollUp, err := app.Models.DriveStats.GetBySerialAndDate(r.Context(), serialNumber, date)
 
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {

@@ -46,9 +46,11 @@ func (app *Config) routes() http.Handler {
 	mux.Get("/rollup_stats", app.ReadRollupStatsHandler)
 
 	/*
-		curl -X GET http://localhost:8080/drive_stats/CT250MX500SSD1/2025-10-06 | jq
+		serial_number + date is the primary key, so this reads exactly one drive-day
+
+		curl -X GET http://localhost:8080/drive_stats/<some serial_number>/2025-10-06 | jq
 	*/
-	mux.Get("/drive_stats/{model}/{date}", app.ReadDriveStatsByModelAndDateHandler)
+	mux.Get("/drive_stats/{serial_number}/{date}", app.ReadDriveStatsBySerialAndDateHandler)
 
 	// UPDATE (PROBLEMS: we shouldnt be able to change serial number or date)
 	// PROBLEM: we cant update the date unless the format is exactly 2025-10-01T15:04:05Z

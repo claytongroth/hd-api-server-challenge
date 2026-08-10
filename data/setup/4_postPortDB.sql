@@ -9,7 +9,8 @@ ALTER TABLE drive_stats ADD PRIMARY KEY (serial_number, date);
 
 -- Create Indexes 
 
---- Read for "Qyery by model", endpoint is probably going to say "Get me limit rows where model = X and date = Y"
+--- For reads keyed on model + date ("get me the rows where model = X and date = Y").
+--- The single drive-day read (serial_number + date) is already covered by the primary key.
 CREATE INDEX drive_stats_model_date_idx ON drive_stats (model, date);
 
 
@@ -24,6 +25,8 @@ ANALYZE drive_stats;
 
 
 --- Create our Materialized View
+-- COALESCE here is cheap insurance against NULL failure values
+-- Not strictly necessary, especially if we had better not NULL constraints
 CREATE MATERIALIZED VIEW drive_rollup AS
 SELECT
     model,

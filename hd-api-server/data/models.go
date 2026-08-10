@@ -30,8 +30,7 @@ type RollupRepo struct{ db *sql.DB }
 
 // records
 
-// DriveStats is one drive-day row out of drive_stats. The smart_* columns are
-// intentionally not mapped -- 186 of them, all TEXT, none used by the endpoints.
+// DriveStats is one drive-day row out of drive_stats.
 type DriveStats struct {
 	Date           time.Time `json:"date"`
 	SerialNumber   string    `json:"serial_number"`
@@ -46,14 +45,12 @@ type DriveStats struct {
 	IsLegacyFormat *bool     `json:"is_legacy_format,omitempty"`
 }
 
-// Rollup is one row of the drive_rollup materialized view. Every aggregate is
-// non-NULL by construction -- COUNT never returns NULL and the SUMs are wrapped
-// in COALESCE -- so nothing here needs a pointer.
+// Rollup is one row from the drive_stats_rollup
 type Rollup struct {
 	Model                    string  `json:"model"`
-	DriveDays                int64   `json:"drive_days"`     // COUNT(*)        -> bigint
-	Drives                   int64   `json:"drives"`         // COUNT(DISTINCT) -> bigint
-	DriveFailures            int64   `json:"drive_failures"` // SUM(smallint)   -> bigint
+	DriveDays                int64   `json:"drive_days"`
+	Drives                   int64   `json:"drives"`
+	DriveFailures            int64   `json:"drive_failures"`
 	NaiveFailureRate         float64 `json:"naive_failure_rate"`
 	AnnualizedFailureRate    float64 `json:"annualized_failure_rate"`
 	AnnualizedFailureRatePct float64 `json:"annualized_failure_rate_pct"`

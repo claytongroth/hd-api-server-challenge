@@ -1,4 +1,4 @@
-# Results:
+# Video Results:
 
 All parts were recorded consecutively with no edits and uploaded to YouTube.
 
@@ -12,6 +12,8 @@ Additionally, I have physically recorded the entire process on an iPhone for bac
 
 - [Entire Seamless Recording IPhone for Backup](https://youtu.be/Dkd1VAxA784)
 
+# Challenge Results:
+
 - [X] All data ported in timely fashion
 - [X] Minimal Working CRUD
 - [X] Fast Response times for all queries, including group by model for failure rate
@@ -24,75 +26,59 @@ RESULT: PASS
 ```
 These are super basic tests for now.
 
+# Quick Start (Needs to be Scriptified):
 
+Requires Docker, `curl`, `unzip`, and `jq` (for `test.sh`). The full load is ~2.3 GB of
+zips and 182 CSVs, and takes ~5 minutes on the `COPY` step alone.
 
-# Clayton's Initial Plan
+```bash
+# 1. Download and unzip the two quarters (~2.3 GB).
+#    Both zips and the extracted CSVs are gitignored.
+cd data/setup && ./1_getData.sh && cd ../..
 
-## Notes:
-- Each row is a drive-day (unique serial number and date)
-- Failure rate "annualized failure rates (AFR)" / 365
+# 2. Put every CSV flat in data/csv_data/ (one file per day, e.g. 2025-10-01.csv).
+#    This step is still manual -- see the write-up. The db container mounts this
+#    directory read-only at /csv_data so the server can COPY from it directly.
 
-- Look at the data, download
-- Scriptify (maybe later) process of download/port-to-db
-- Docker compose for postgres and Go API-server
+# 3. Bring up Postgres.
+docker compose up -d db
 
-## DB setup
-- Made schema in 2_setupDB.sql
-- Made Indexes, logged, and analyze in 4_postPortDB.sql
-- Test our Materialized View in 5_benchmarkQueries.sql
+# 4. Create the (UNLOGGED) drive_stats table.
+docker compose exec -T db psql -U postgres -d postgres < data/setup/2_setupDB.sql
 
+# 5. Load the CSVs -- server-side COPY, 4 files at a time.
+#    Add -t for a 5-file subset test.
+./data/setup/3_portData.sh
 
-## API-server
-- CRUD
-  - C 
-  - R ("Get me limit rows where model = X and date = Y", "Get me the rollup")
-  - U 
-  - D 
+# 6. Set the table LOGGED, add the PK + indexes, ANALYZE, build the rollup
+#    materialized view. This is the slow one (the ALTER TABLE alone is ~6 min).
+docker compose exec -T db psql -U postgres -d postgres < data/setup/4_postPortDB.sql
 
+# 7. Start the API on :8080.
+docker compose up -d
+```
 
-# Biggest Challenges:
-- Porting data in a timely fashion
-    - File by file (COPY FROM HEADERs, on the container already)
-    - Make a super-file of all the CSVs and do one copy
+### Endpoints
 
-- Making our Queries fast
+```
+GET    /helloworld
+GET    /rollup_stats                              # avg failure rates grouped by model
+GET    /drive_stats/{serial_number}/{date}        # one drive-day (primary key lookup)
+POST   /drive_stats                               # body: JSON, date as RFC 3339
+PUT    /drive_stats                               # body: JSON, date as RFC 3339
+DELETE /drive_stats/{serial_number}/{date}
+```
 
+`curl` examples for each live next to the route in `hd-api-server/cmd/routes.go`.
 
+### Smoke test
 
+```bash
+# REAL_SERIAL/REAL_DATE point the real-data probe at a row you actually loaded:
+#   select serial_number, date from drive_stats limit 1;
+REAL_SERIAL=<a loaded serial> REAL_DATE=2025-10-06 ./test.sh
+```
 
-
-## TODOS/Problems with this Project as done in one shot:
-- Actually scriptify the port-to-db process and DB setup
-- Fix the date format issues in the API so that requests can be more friendly to make without errors.
-- Think about giving the columns IDs that are hashes of `serial_number + date` so things are overall cleaner on the backend?
-- Queries are all just raw SQL. This is bad for SQL injection, we should use some library for controlled queries.
-- We can `REFRESH MATERIALIZED VIEW CONCURRENTLY drive_rollup;` in the background with a go routine to keep the rollup up to date.
-    - A redesign here mioght conider a DB or extension that can do a *TIMED* `REFRESH MATERIALIZED VIEW CONCURRENTLY drive_rollup;`
-    - TimescaleDB is capable of this
-- We could have more/better endpoints to query the rollup. For example, for one model, or over a specific date range. We could have different rollups potentially as well.
-- We could have actual Golang tests for the API, not jsut a curl shell script.
-- We didnt really scrutinize the speed of the C,U,D queries, but we could have done that. These arent the big issues here as of now.
-
-# Original Challenge:
-
-### Objectives
-
-Download at least two BackBlaze hard drive dataset csvs and load them into a SQL database of your choosing.
-
-[Backblaze Hard Drive Test Data](https://www.backblaze.com/cloud-storage/resources/hard-drive-test-data)
-
-Create a standard CRUD REST API to query the data.
-
-Create a REST API to query average failure rates grouped by model across all datasets
-
-Specifically look at performance tuning API response and database query times to achieve the fastest response time possible.
-
-Write it in Go or a language of your choice.
-
-### Deliverables
-
-- An unedited screen-recording of your coding session (include all windows used)
-- A write-up explaining your architecture, decisions, considerations, etc.
-- Codebase and dataset you wrote to perform the extraction.
-- Documentation of any AI tool usage, including prompts.
+`data/setup/5_benchmarkQueries.sql` holds the before/after query timings discussed in
+the write-up.
 

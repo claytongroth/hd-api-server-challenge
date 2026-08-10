@@ -14,16 +14,16 @@
 #   ./test.sh                                  # against localhost:8080
 #   BASE_URL=http://localhost:9000 ./test.sh   # somewhere else
 #
-#   # the real-data probe defaults to a model/date that exists in the
-#   # Backblaze load; override if you loaded a different range
-#   REAL_MODEL=ST16000NM001G REAL_DATE=2025-10-06 ./test.sh
+#   # the real-data probe needs a serial_number/date that exists in your load,
+#   # e.g. select serial_number, date from drive_stats limit 1;
+#   REAL_SERIAL=ZLW18P9K REAL_DATE=2025-10-06 ./test.sh
 #
 # Requires: curl, jq. Exits non-zero if any assertion fails.
 
 set -uo pipefail
 
 BASE_URL="${BASE_URL:-http://localhost:8080}"
-REAL_MODEL="${REAL_MODEL:-CT250MX500SSD1}"
+REAL_SERIAL="${REAL_SERIAL:-}"
 REAL_DATE="${REAL_DATE:-2025-10-06}"
 
 # Throwaway record. $$ keeps parallel runs from colliding with each other.
@@ -130,21 +130,26 @@ echo
 
 # --- 3. read against the real loaded data ----------------------------------
 # Not a hard assertion: whether this hits depends on which quarters you loaded.
-echo "3. Real-data read ($REAL_MODEL / $REAL_DATE)"
-request GET "/drive_stats/$REAL_MODEL/$REAL_DATE"
-case "$HTTP_CODE" in
-    200) printf '  PASS  %-52s 200 in %ss\n' "GET real drive_stats" "$TIME_TOTAL"
-         PASSED=$((PASSED + 1)) ;;
-    404) printf '  SKIP  %-52s 404 (model/date not in your load)\n' "GET real drive_stats" ;;
-    *)   printf '  FAIL  %-52s got %s\n' "GET real drive_stats" "$HTTP_CODE"
-         FAILED=$((FAILED + 1)) ;;
-esac
+if [ -z "$REAL_SERIAL" ]; then
+    echo "3. Real-data read"
+    printf '  SKIP  %-52s set REAL_SERIAL to a loaded serial_number\n' "GET real drive_stats"
+else
+    echo "3. Real-data read ($REAL_SERIAL / $REAL_DATE)"
+    request GET "/drive_stats/$REAL_SERIAL/$REAL_DATE"
+    case "$HTTP_CODE" in
+        200) printf '  PASS  %-52s 200 in %ss\n' "GET real drive_stats" "$TIME_TOTAL"
+             PASSED=$((PASSED + 1)) ;;
+        404) printf '  SKIP  %-52s 404 (serial/date not in your load)\n' "GET real drive_stats" ;;
+        *)   printf '  FAIL  %-52s got %s\n' "GET real drive_stats" "$HTTP_CODE"
+             FAILED=$((FAILED + 1)) ;;
+    esac
+fi
 echo
 
 # --- 4. read before create: must 404 ---------------------------------------
 echo "4. Read before create"
-request GET "/drive_stats/$TEST_MODEL/$TEST_DATE"
-expect_status 404 "GET /drive_stats/{model}/{date} (absent)"
+request GET "/drive_stats/$TEST_SERIAL/$TEST_DATE"
+expect_status 404 "GET /drive_stats/{serial_number}/{date} (absent)"
 echo
 
 # --- 5. create -------------------------------------------------------------
@@ -157,14 +162,14 @@ echo
 
 # --- 6. read it back -------------------------------------------------------
 echo "6. Read after create"
-request GET "/drive_stats/$TEST_MODEL/$TEST_DATE"
-expect_status 200 "GET /drive_stats/{model}/{date} (present)"
+request GET "/drive_stats/$TEST_SERIAL/$TEST_DATE"
+expect_status 200 "GET /drive_stats/{serial_number}/{date} (present)"
 expect_json '.serial_number' "$TEST_SERIAL" "GET returns our row"
 expect_json '.datacenter' 'DC1' "GET datacenter before update"
 echo
 
 # --- 7. update -------------------------------------------------------------
-# Model and date are the lookup key, so change the mutable fields instead:
+# Serial number and date are the lookup key, so change the mutable fields instead:
 # failure 0 -> 1, datacenter DC1 -> DC2.
 echo "7. Update"
 request PUT /drive_stats "$(create_body 1 DC2)"
@@ -175,7 +180,7 @@ echo
 
 # --- 8. confirm the update stuck -------------------------------------------
 echo "8. Read after update"
-request GET "/drive_stats/$TEST_MODEL/$TEST_DATE"
+request GET "/drive_stats/$TEST_SERIAL/$TEST_DATE"
 expect_status 200 "GET after update"
 expect_json '.failure' '1' "update persisted"
 echo
@@ -198,7 +203,7 @@ echo
 echo "11. Confirm cleanup"
 request DELETE "/drive_stats/$TEST_SERIAL/$TEST_DATE"
 expect_status 404 "DELETE again (already gone)"
-request GET "/drive_stats/$TEST_MODEL/$TEST_DATE"
+request GET "/drive_stats/$TEST_SERIAL/$TEST_DATE"
 expect_status 404 "GET after delete"
 echo
 

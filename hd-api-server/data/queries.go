@@ -3,7 +3,6 @@ package data
 import (
 	"context"
 	"database/sql"
-	"fmt"
 )
 
 // insert one drive-day
@@ -54,18 +53,17 @@ func (repo *DriveStatsRepo) Create(ctx context.Context, driveStats DriveStats) (
 	return &saved, nil
 }
 
-func (repo *DriveStatsRepo) GetByModelAndDate(ctx context.Context, model string, date string) (*DriveStats, error) {
+// serial_number + date is the primary key, so this is always at most one row
+func (repo *DriveStatsRepo) GetBySerialAndDate(ctx context.Context, serialNumber string, date string) (*DriveStats, error) {
 	ctx, cancel := context.WithTimeout(ctx, dbTimeout)
 	defer cancel()
-
-	fmt.Println("GetByModelAndDate Query", model, date)
 
 	query := `
 		select date, serial_number, model, capacity_bytes, failure, datacenter, cluster_id, vault_id, pod_id, pod_slot_num, is_legacy_format
 		from drive_stats
-		where model = $1 and date = $2`
+		where serial_number = $1 and date = $2`
 
-	row := repo.db.QueryRowContext(ctx, query, model, date)
+	row := repo.db.QueryRowContext(ctx, query, serialNumber, date)
 
 	var one DriveStats
 	err := row.Scan(

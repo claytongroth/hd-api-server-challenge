@@ -4,7 +4,8 @@ EXPLAIN ANALYZE
 
 
 
--- For Our GET /drive_stats/{model}/{date} endpoint
+-- For the "query by model + date" read path, served by drive_stats_model_date_idx
+-- (the GET endpoint keys on serial_number + date, which the primary key covers)
 -- Time before (time before index):  Time: 37034.929 ms (00:37.035)
 -- Time After (time after index): Time: 54.350 ms
 SELECT 
@@ -22,6 +23,7 @@ SELECT
 FROM drive_stats
 WHERE model = 'CT250MX500SSD1'
 AND date = '2025-10-01';
+-- I had initially thought this endpoint might be a GET with limit/offset, but eventually just settled for GET by serial_number and Date
 
 
 -- For Our Group BY ONCE 
@@ -42,13 +44,3 @@ SELECT
         AS annualized_failure_rate_pct
 FROM drive_stats
 GROUP BY model;
-
-
-
--- Time before: 
--- Time After:
-
-
-
--- Time before: 
--- Time After:
