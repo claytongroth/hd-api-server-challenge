@@ -1,4 +1,5 @@
-DROP TABLE IF EXISTS drive_stats;
+-- CASCADE: drive_rollup depends on this. 4_postPortDB.sql rebuilds it.
+DROP TABLE IF EXISTS drive_stats CASCADE;
 CREATE UNLOGGED TABLE drive_stats (
     date date,
     serial_number varchar(255),

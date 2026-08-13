@@ -53,6 +53,10 @@ TABLE="drive_stats"
 CSV_DIR_HOST="$REPO_ROOT/data/csv_data"   # where we list files from
 CSV_DIR_MOUNT="/csv_data"                 # where the server reads them from
 
+
+# Run the initial SQL table setup in 2_setupDB.sql
+
+
 log() { printf '[%s] %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$*"; }
 
 # psql inside the db container. -T = no TTY, ON_ERROR_STOP = fail loudly.
@@ -61,7 +65,17 @@ psql_c() {
         psql -U "$PG_USER" -d "$PG_DB" -v ON_ERROR_STOP=1 --no-psqlrc -tA -c "$1"
 }
 
+# Run a SQL file in the db container. Fed in on stdin because the setup/ dir
+# isn't mounted, so `-f` would look for it container-side.
+run_sql_file() {
+    docker compose -f "$REPO_ROOT/docker-compose.yml" exec -T "$DB_SERVICE" \
+        psql -U "$PG_USER" -d "$PG_DB" -v ON_ERROR_STOP=1 --no-psqlrc \
+        < "$SCRIPT_DIR/$1"
+}
+
+
 # --- Make sure the server can actually read the bind mount ------------------
+# Checked before 2_setupDB.sql so a bad mount doesn't drop the table first.
 log "Checking the bind mount at $CSV_DIR_MOUNT inside the '$DB_SERVICE' container..."
 
 MOUNTED_COUNT="$(docker compose -f "$REPO_ROOT/docker-compose.yml" exec -T "$DB_SERVICE" \
@@ -73,6 +87,10 @@ if [ "$MOUNTED_COUNT" = "0" ]; then
     exit 1
 fi
 log "OK: $MOUNTED_COUNT CSV files visible to the server."
+
+
+log "Running the initial SQL table setup in 2_setupDB.sql..."
+run_sql_file 2_setupDB.sql
 
 # --- Build the file list ----------------------------------------------------
 cd "$CSV_DIR_HOST"
@@ -126,7 +144,7 @@ fi
 
 RUN_ELAPSED=$(($(date +%s) - RUN_START))
 
-# Row count comes from the table, since the workers can't share a counter.
-# TOTAL_ROWS=$(psql_c "SELECT count(*) FROM $TABLE;" | tr -dc '0-9')
-# log "DONE: $TOTAL file(s) in ${RUN_ELAPSED}s. $TABLE now holds ${TOTAL_ROWS:-0} rows."
-# log "Next: run 4_postPortDB.sql to set the table LOGGED, add the PK and indexes."
+
+# --- Run the post-port SQL file ----------------------------------------------
+log "Running the post-port SQL file in 4_postPortDB.sql..."
+run_sql_file 4_postPortDB.sql

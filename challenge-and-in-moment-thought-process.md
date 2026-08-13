@@ -41,10 +41,10 @@
 - Think about giving the columns IDs that are hashes of `serial_number + date` so things are overall cleaner on the backend?
 - Queries are all just raw SQL. This is bad for SQL injection, we should use some library for controlled queries. (This is wrong, see `write-up.md`)
 - We can `REFRESH MATERIALIZED VIEW CONCURRENTLY drive_rollup;` in the background with a go routine to keep the rollup up to date.
-    - A redesign here might conider a DB or extension that can do a *TIMED* `REFRESH MATERIALIZED VIEW CONCURRENTLY drive_rollup;`
+    - A redesign here might consider a DB or extension that can do a *TIMED* `REFRESH MATERIALIZED VIEW CONCURRENTLY drive_rollup;`
     - TimescaleDB is capable of this
 - We could have more/better endpoints to query the rollup. For example, for one model, or over a specific date range. We could have different rollups potentially as well.
-- We could have actual Golang tests for the API, not jsut a curl shell script.
+- We could have actual Golang tests for the API, not just a curl shell script.
 - We didnt really scrutinize the speed of the C,U,D queries, but we could have done that. These arent the big issues here as of now.
 
 # Original Challenge:

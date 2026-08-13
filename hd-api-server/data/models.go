@@ -6,6 +6,7 @@ import (
 )
 
 const dbTimeout = time.Second * 3
+const rollupTimeout = time.Minute * 10
 
 // When this is called, the db is already connected,
 // So this way the Repos share the same pool
