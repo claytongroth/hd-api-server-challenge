@@ -41,6 +41,8 @@ SELECT
     ROUND(COALESCE(SUM(failure), 0)::numeric * 365 / COUNT(*), 6)
         AS annualized_failure_rate,
     ROUND(COALESCE(SUM(failure), 0)::numeric * 36500 / COUNT(*), 3)
-        AS annualized_failure_rate_pct
+        AS annualized_failure_rate_pct,
+    (SELECT changed_at FROM drive_stats_change
+      WHERE source_table = 'drive_stats') AS source_changed_at
 FROM drive_stats
 GROUP BY model;

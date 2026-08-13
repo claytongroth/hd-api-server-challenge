@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"log"
@@ -31,6 +32,17 @@ func main() {
 		Wait:     &wg,
 		Models:   data.New(db),
 	}
+
+	// go routine for doing the `REFRESH MATERIALIZED VIEW CONCURRENTLY drive_rollup;`
+	rollupContext, cancelRollup := context.WithCancel(context.Background())
+	app.cancelRollup = cancelRollup
+	app.RefreshRate = 10 * time.Minute
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		app.InfoLog.Println("Starting drive_rollup refresher")
+		app.RefreshDriveRollup(rollupContext)
+	}()
 
 	go app.ListenForShutdown()
 
@@ -117,8 +129,8 @@ func (app *Config) ListenForShutdown() {
 func (app *Config) shutdown() {
 	app.InfoLog.Println("Shutting down... Cleaning up ...")
 
-	// block until the wait group is empty
-	app.Wait.Wait()
+	app.cancelRollup() // stop the refresher
+	app.Wait.Wait()    // now this actually blocks on something
 
 	app.InfoLog.Println("Shutdown complete. Bye!")
 }

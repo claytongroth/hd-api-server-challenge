@@ -26,36 +26,28 @@ RESULT: PASS
 ```
 These are super basic tests for now.
 
-# Quick Start (Needs to be Scriptified):
+# Quick Start
 
-Requires Docker, `curl`, `unzip`, and `jq` (for `test.sh`). The full load is ~2.3 GB of
-zips and 182 CSVs, and takes ~5 minutes on the `COPY` step alone.
+Requires Docker, `curl`, `unzip`, and `jq` (for `test.sh`).
 
 ```bash
-# 1. Download and unzip the two quarters (~2.3 GB).
-#    Both zips and the extracted CSVs are gitignored.
-cd data/setup && ./1_getData.sh && cd ../..
+cd data/setup && ./0_fullSetupFromScratch.sh
+```
 
-# 2. Put every CSV flat in data/csv_data/ (one file per day, e.g. 2025-10-01.csv).
-#    This step is still manual -- see the write-up. The db container mounts this
-#    directory read-only at /csv_data so the server can COPY from it directly.
+- Downloads two quarters of Backblaze data, 
+= Loads all 182 CSVs, adds the PK,
+- Indexes and the `drive_rollup` materialized view, and starts the API on :8080.
+- Wipes `data/csv_data/` and the `drive_stats` table first, so it is safe to
+re-run. 
+- Slowest steps are the `COPY`s, the `SET LOGGED` rewrite (~6 min) and the
+first rollup build (~4 min).
 
-# 3. Bring up Postgres.
-docker compose up -d db
+If the CSVs are already in `data/csv_data/`, skip the download:
 
-# 4. Create the (UNLOGGED) drive_stats table.
-docker compose exec -T db psql -U postgres -d postgres < data/setup/2_setupDB.sql
-
-# 5. Load the CSVs -- server-side COPY, 4 files at a time.
-#    Add -t for a 5-file subset test.
-./data/setup/3_portData.sh
-
-# 6. Set the table LOGGED, add the PK + indexes, ANALYZE, build the rollup
-#    materialized view. This is the slow one (the ALTER TABLE alone is ~6 min).
-docker compose exec -T db psql -U postgres -d postgres < data/setup/4_postPortDB.sql
-
-# 7. Start the API on :8080.
-docker compose up -d
+```bash
+docker compose up -d --wait db
+cd data/setup && ./3_portData.sh   # -t loads a 5-file subset
+docker compose up -d --build api
 ```
 
 ### Endpoints

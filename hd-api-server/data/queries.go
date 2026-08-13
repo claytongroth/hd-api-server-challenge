@@ -5,6 +5,50 @@ import (
 	"database/sql"
 )
 
+func (repo *RollupRepo) RefreshDriveRollup(ctx context.Context) error {
+	ctx, cancel := context.WithTimeout(ctx, rollupTimeout) // longer timeout for the refresh
+	defer cancel()
+
+	query := `
+		REFRESH MATERIALIZED VIEW CONCURRENTLY drive_rollup;
+	`
+
+	// REFRESH MATERIALIZED VIEW reports no row count
+	if _, err := repo.db.ExecContext(ctx, query); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// The view stores the stamp it was updated at, so a newer watermark
+// on drive_stats_change means there is something new to roll up. Two one-row
+// reads -- this never touches drive_stats because that table is huge.
+func (repo *RollupRepo) NeedsRefresh(ctx context.Context) (bool, error) {
+	ctx, cancel := context.WithTimeout(ctx, dbTimeout)
+	defer cancel()
+
+	// "is drive_stats newer than what the view was built from?"
+	// coalesce to true so an empty view refreshes instead of reading as current
+	query := `
+		select coalesce(
+			(select changed_at from drive_stats_change where source_table = 'drive_stats')
+			>
+			(select max(source_changed_at) from drive_rollup),
+			true
+		)`
+
+	var needsRefresh bool
+	err := repo.db.QueryRowContext(ctx, query).Scan(&needsRefresh)
+
+	if err != nil {
+		return false, err
+	}
+
+	// return true if there was a changed_at stamp > the max of the view or now
+	return needsRefresh, nil
+}
+
 // insert one drive-day
 func (repo *DriveStatsRepo) Create(ctx context.Context, driveStats DriveStats) (*DriveStats, error) {
 	ctx, cancel := context.WithTimeout(ctx, dbTimeout)
